@@ -19,4 +19,24 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
 
-self.addEventListener('fetch', event => event.respondWith(fetch(event.request)));
+self.addEventListener('fetch', event => {
+  event.request.parsedUrl = new URL(event.request.url);
+  if (event.request.parsedUrl.pathname.startsWith('/static/')) {
+    return cacheFirst(event, `static-${VERSION}`);
+  }
+  return cacheFirst(event, `dynamic-${VERSION}`);
+});
+
+function cacheFirst(event, cachename) {
+  const cachedVersion = caches.match(event.request);
+  const cacheThenFetch = cachedVersion.then(resp => resp || fetch(event.request));
+
+  event.respondWith(cacheThenFetch.then(resp => resp.clone()));
+
+  event.waitUntil(
+    cachedVersion.then(resp =>
+      resp || Promise.all([cacheThenFetch, caches.open(cachename)])
+        .then(([response, cache]) => cache.put(event.request, response))
+    )
+  );
+}
