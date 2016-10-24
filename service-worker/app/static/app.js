@@ -38,3 +38,16 @@ class App {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js', {scope: '/'});
 }
+
+function goOffline() {
+  document.body.classList.add('offline');
+  Array.from(document.querySelectorAll('nav a')).forEach(link => {
+    const linkUrl = new URL(link.href);
+    linkUrl.searchParams.set('partial', '');
+    caches.match(linkUrl.toString())
+      .then(resp => link.classList.toggle('cached', !!resp));
+  });
+};
+window.addEventListener('offline', _ => goOffline());
+window.addEventListener('online', _ => document.body.classList.remove('offline'));
+navigator.onLine || goOffline();
