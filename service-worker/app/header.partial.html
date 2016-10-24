@@ -19,10 +19,6 @@ limitations under the License.
   <meta name="theme-color" content="#FF00FF">
   <title>Router</title>
   <link rel="stylesheet" href="/static/superstyles.css">
-  <link rel="preload" href="/">
-  <link rel="preload" href="/about/">
-  <link rel="preload" href="/contact/">
-  <link rel="preload" href="/misc/">
 </head>
 <body>
   <nav>
@@ -34,15 +30,15 @@ limitations under the License.
     </ul>
   </nav>
 
-  {{#ifNotEq item ""}}
+  {{? it.item !== ""}}
   <sc-view remote class="view-home" route="^/$"></sc-view>
-  {{/ifNotEq}}
-  {{#ifNotEq item "about"}}
+  {{?}}
+  {{? it.item !== "about"}}
   <sc-view remote class="view-about" route="^/about/(.*)"></sc-view>
-  {{/ifNotEq}}
-  {{#ifNotEq item "contact"}}
+  {{?}}
+  {{? it.item !== "contact"}}
   <sc-view remote class="view-contact" route="^/contact/(.*)"></sc-view>
-  {{/ifNotEq}}
-  {{#ifNotEq item "misc"}}
+  {{?}}
+  {{? it.item !== "misc"}}
   <sc-view remote class="view-misc" route="^/misc/(.*)"></sc-view>
-  {{/ifNotEq}}
+  {{?}}

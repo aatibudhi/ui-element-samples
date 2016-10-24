@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "dot": "^1.0.3",
     "express": "^4.14.0",
-    "handlebars": "^4.0.5",
-    "spdy": "^3.4.0",
     "http2": "^3.3.5",
-    "mz": "^2.4.0"
+    "mz": "^2.4.0",
+    "spdy": "^3.4.0"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "scripts": {
+    "chrome": "open -a 'Google Chrome Canary' -n --args --user-data-dir=/tmp/foo --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://localhost:8081"
+  }
 }

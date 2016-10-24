@@ -61,7 +61,7 @@ class SCView extends HTMLElement {
       this._hideSpinner();
     };
     xhr.responseType = 'document';
-    xhr.open('GET', `${data[0]}?partial`);
+    xhr.open('GET', `${data[0]}?partial=`);
     xhr.send();
   }
 
