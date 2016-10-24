@@ -24,7 +24,7 @@ self.addEventListener('fetch', event => {
   if (event.request.parsedUrl.pathname.startsWith('/static/')) {
     return cacheFirst(event, `static-${VERSION}`);
   }
-  return cacheFirst(event, `dynamic-${VERSION}`);
+  return staleWhileRevalidate(event, `dynamic-${VERSION}`);
 });
 
 function cacheFirst(event, cachename) {
@@ -38,5 +38,23 @@ function cacheFirst(event, cachename) {
       resp || Promise.all([cacheThenFetch, caches.open(cachename)])
         .then(([response, cache]) => cache.put(event.request, response))
     )
+  );
+}
+
+function staleWhileRevalidate(event, cachename) {
+  const cachedVersion = caches.match(event.request);
+  const fetchedVersion = fetch(event.request);
+  const fetchedCopy = fetchedVersion.then(resp => resp.clone());
+
+  event.respondWith(
+    Promise.race([cachedVersion, fetchedVersion.catch(_ => cachedVersion)])
+      .then(response => response || fetchedVersion)
+      .catch(_ => new Response(null, {status: 404}))
+  );
+
+  event.waitUntil(
+    Promise.all([fetchedCopy, caches.open(cachename)])
+      .then(([response, cache]) => cache.put(event.request, response))
+      .catch(_ => {/* eat errors*/})
   );
 }
