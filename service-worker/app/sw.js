@@ -82,16 +82,17 @@ function staleWhileRevalidateWrapper(path, cachename, waitUntil) {
 }
 
 function buildPage(event) {
+  const isPartial = event.request.parsedUrl.searchParams.get('partial') === '';
   const URLcpy = new URL(event.request.parsedUrl);
   URLcpy.searchParams.set('partial', '');
 
   event.respondWith(
     Promise.all([
-      caches.match('/header.partial.html'),
+      isPartial || caches.match('/header.partial.html'),
       staleWhileRevalidateWrapper(URLcpy.toString(), `dynamic-${VERSION}`, event.waitUntil),
-      caches.match('/footer.partial.html')
+      isPartial || caches.match('/footer.partial.html')
     ])
-    .then(files => Promise.all(files.map(f => f.text())))
+    .then(files => Promise.all(files.filter(f => f !== true).map(f => f.text())))
     .then(contents => {
       const template = contents.join('');
       const data = doT.template(template)(event.request);
