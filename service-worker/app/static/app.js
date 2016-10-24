@@ -34,3 +34,7 @@ class App {
 }
 
 (_ => new App())();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', {scope: '/'});
+}
