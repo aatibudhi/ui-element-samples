@@ -4,22 +4,20 @@ importScripts('/node_modules/dot/doT.min.js');
 doT.templateSettings.strip = false;
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(`static-${VERSION}`)
-      .then(caches =>
-        caches.addAll([
-          '/favicon.ico',
-          '/static/app.js',
-          '/static/sc-view.js',
-          '/static/sc-router.js',
-          '/static/superstyles.css',
-          '/static/images/spinner.png',
-          '/header.partial.html',
-          '/footer.partial.html'
-        ])
-      )
-      .then(_ => self.skipWaiting())
-  );
+  event.waitUntil(async function () {
+    const cache = await caches.open(`static-${VERSION}`);
+    await cache.addAll([
+      '/favicon.ico',
+      '/static/app.js',
+      '/static/sc-view.js',
+      '/static/sc-router.js',
+      '/static/superstyles.css',
+      '/static/images/spinner.png',
+      '/header.partial.html',
+      '/footer.partial.html'
+    ]);
+    return self.skipWaiting();
+  }());
 });
 
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
@@ -43,14 +41,20 @@ function cacheFirst(event, cachename) {
   const cachedVersion = caches.match(event.request);
   const cacheThenFetch = cachedVersion.then(resp => resp || fetch(event.request));
 
-  event.respondWith(cacheThenFetch.then(resp => resp.clone()));
+  event.respondWith(async function() {
+    const resp = await cacheThenFetch;
+    return resp.clone();
+  }());
 
-  event.waitUntil(
-    cachedVersion.then(resp =>
-      resp || Promise.all([cacheThenFetch, caches.open(cachename)])
-        .then(([response, cache]) => cache.put(event.request, response))
-    )
-  );
+  event.waitUntil(async function() {
+    const cachedResp = await cachedVersion;
+    if (cachedResp) {
+      return;
+    }
+    const cache = await caches.open(cachename);
+    const response = await cacheThenFetch;
+    return cache.put(event.request, response);
+  }());
 }
 
 function staleWhileRevalidate(event, cachename) {
@@ -58,17 +62,25 @@ function staleWhileRevalidate(event, cachename) {
   const fetchedVersion = fetch(event.request);
   const fetchedCopy = fetchedVersion.then(resp => resp.clone());
 
-  event.respondWith(
-    Promise.race([cachedVersion, fetchedVersion.catch(_ => cachedVersion)])
-      .then(response => response || fetchedVersion)
-      .catch(_ => new Response(null, {status: 404}))
-  );
+  event.respondWith(async function() {
+    try {
+      const response = await Promise.race([cachedVersion, fetchedVersion.catch(_ => cachedVersion)]);
+      if (response) {
+        return response;
+      }
+      return await fetchedVersion;
+    } catch (e) {
+      return new Response(null, {status: 404});
+    }
+  }());
 
-  event.waitUntil(
-    Promise.all([fetchedCopy, caches.open(cachename)])
-      .then(([response, cache]) => cache.put(event.request, response))
-      .catch(_ => {/* eat errors*/})
-  );
+  event.waitUntil(async function() {
+    try {
+      const response = await fetchedCopy;
+      const cache = await caches.open(cachename);
+      return cache.put(event.request, response);
+    } catch (e) {/* eat errors*/}
+  }());
 }
 
 function staleWhileRevalidateWrapper(path, cachename, waitUntil) {
@@ -86,17 +98,15 @@ function buildPage(event) {
   const URLcpy = new URL(event.request.parsedUrl);
   URLcpy.searchParams.set('partial', '');
 
-  event.respondWith(
-    Promise.all([
+  event.respondWith(async function() {
+    const files = await Promise.all([
       isPartial || caches.match('/header.partial.html'),
       staleWhileRevalidateWrapper(URLcpy.toString(), `dynamic-${VERSION}`, event.waitUntil),
       isPartial || caches.match('/footer.partial.html')
-    ])
-    .then(files => Promise.all(files.filter(f => f !== true).map(f => f.text())))
-    .then(contents => {
-      const template = contents.join('');
-      const data = doT.template(template)(event.request);
-      return new Response(data, {headers: {'Content-Type': 'text/html'}});
-    })
-  );
+    ]);
+    const contents = await Promise.all(files.filter(f => f !== true).map(f => f.text()));
+    const template = contents.join('');
+    const data = doT.template(template)(event.request);
+    return new Response(data, {headers: {'Content-Type': 'text/html'}});
+  }());
 }
